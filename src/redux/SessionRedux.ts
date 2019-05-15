@@ -1,7 +1,8 @@
-import {createReducer} from "reduxsauce";
+import { createReducer } from "reduxsauce";
 import { Dispatch } from 'react';
 
 import * as SessionService from "../services/SessionService";
+import axios from 'axios';
 
 const reducerName = "session";
 /*
@@ -12,6 +13,8 @@ const ActionTypes = {
     LOGIN_SUCCESS: `${reducerName}.loginSuccess`,
     LOGIN_FAILURE: `${reducerName}.loginFailure`,
 
+    LOGOUT: `${reducerName}.logout`,
+
     REGISTER_ASYNC: `${reducerName}.registerAsync`,
     REGISTER_SUCCESS: `${reducerName}.registerSuccess`,
     REGISTER_FAILURE: `${reducerName}.registerFailure`,
@@ -21,38 +24,49 @@ const ActionTypes = {
  * Actions
  */
 export const Actions = {
-    LoginAsync: () => {
+    LoginAsync: (username: string, password: string) => {
         return (dispatch: Dispatch<any>) => {
-            dispatch({type: ActionTypes.LOGIN_ASYNC});
-            SessionService.login()
-            .then(res => {
-                dispatch({type: ActionTypes.LOGIN_SUCCESS});
-            })
-            .catch(err => {
-                dispatch({type: ActionTypes.LOGIN_FAILURE});
-            });// end SessionService.login()
-            
+            dispatch({ type: ActionTypes.LOGIN_ASYNC });
+            SessionService.login(username, password)
+                .then(data => {
+                    console.log(data);
+                    //Set the Authorization Token
+                    axios.defaults.headers.common['Authorization'] = `Bearer ${data["token"]}`;
+                    dispatch(Actions.LoginSuccess(data["username"], data["token"]));
+                })
+                .catch((errorMessage) => {
+                    console.log(errorMessage);
+                    dispatch(Actions.LoginFailure(errorMessage));
+                });// end SessionService.login()
+
         }// end return
     },// end LoginAsync()
 
-    LoginSuccess: () => ({
-        type: ActionTypes.LOGIN_SUCCESS
+    LoginSuccess: (username: string, token: string) => ({
+        type: ActionTypes.LOGIN_SUCCESS,
+        _username: username,
+        _token: token
     }),// end LoginSuccess()
 
-    LoginFailure: () => ({
-        type: ActionTypes.LOGIN_FAILURE
+    LoginFailure: (error: string) => ({
+        type: ActionTypes.LOGIN_FAILURE,
+        _error: error
     }),// end LoginFailure()
 
-    RegisterAsync: () => {
+    Logout: () => ({
+        type: ActionTypes.LOGOUT,
+    }),// end Logout()
+
+    RegisterAsync: (username: string, password: string, name: string) => {
         return (dispatch: Dispatch<any>) => {
-            dispatch({type: ActionTypes.REGISTER_ASYNC});
-            SessionService.register()
-            .then(res => {
-                dispatch({type: ActionTypes.REGISTER_SUCCESS});
-            })
-            .catch(err => {
-                dispatch({type: ActionTypes.REGISTER_FAILURE});
-            });// end SessionService.register()
+            dispatch({ type: ActionTypes.REGISTER_ASYNC });
+            SessionService.register(username, password, name)
+                .then(res => {
+                    dispatch(Actions.RegisterSuccess());
+                })
+                .catch(err => {
+                    dispatch(Actions.RegisterFailure(err));
+                });// end SessionService.register()
         }// end return
     },// end RegisterAsync()
 
@@ -60,53 +74,70 @@ export const Actions = {
         type: ActionTypes.REGISTER_SUCCESS
     }),// end RegisterSuccess()
 
-    RegisterFailure: () => ({
-        type: ActionTypes.REGISTER_FAILURE
+    RegisterFailure: (error: string) => ({
+        type: ActionTypes.REGISTER_FAILURE,
+        _error: error
     }),// end RegisterFailure()
 };// end Actions
- /*
- * Initital state
- */
+/*
+* Initital state
+*/
 export interface SessionState {
-    user_id: string;
-    session_id: string;
+    username: string;
+    token: string;
+
+    registerSuccess?: boolean;
+    error?: string;
 }
 const INITIAL_STATE: SessionState = {
-    user_id: "",
-    session_id: "",
+    username: "",
+    token: "",
+
 };
 
 /*
  * Reducers
  */
 
-function loginAsyncReducer(state: SessionState, {}: any): SessionState {
-    return state;
+function loginAsyncReducer(state: SessionState, { }: any): SessionState {
+    return { ...state, error: undefined, registerSuccess: undefined };
 }// end loginAsyncReducer()
-function loginSuccessReducer(state: SessionState, {}: any): SessionState {
-    return state;
+function loginSuccessReducer(state: SessionState, { _username, _token }: any): SessionState {
+    const username = _username as string;
+    const token = _token as string;
+
+    return { username, token, error: undefined };
 }// end loginSuccessReducer()
-function loginFailureReducer(state: SessionState, {}: any): SessionState {
-    return state;
+function loginFailureReducer(state: SessionState, { _error }: any): SessionState {
+    const error = _error as string;
+
+    return { ...state, error };
 }// end loginFailureReducer()
 
-function registerAsyncReducer(state: SessionState, {}: any): SessionState {
-    return state;
+function logoutReducer(state: SessionState, { }: any): SessionState {
+    return { username: "", token: "" }
+}
+
+function registerAsyncReducer(state: SessionState, { }: any): SessionState {
+    return { ...state, error: undefined, registerSuccess: undefined };
 }// end registerAsyncReducer()
-function registerSuccessReducer(state: SessionState, {}: any): SessionState {
-    return state;
+function registerSuccessReducer(state: SessionState, { }: any): SessionState {
+    return { ...state, registerSuccess: true };
 }// end registerSuccessReducer()
-function registerFailureReducer(state: SessionState, {}: any): SessionState {
-    return state;
+function registerFailureReducer(state: SessionState, { _error }: any): SessionState {
+    const error = _error as string;
+    return { ...state, error: error };
 }// end registerFailureReducer()
 
 
 export const reducer = createReducer(INITIAL_STATE, {
-    [ActionTypes.LOGIN_ASYNC]: loginAsyncReducer, 
+    [ActionTypes.LOGIN_ASYNC]: loginAsyncReducer,
     [ActionTypes.LOGIN_SUCCESS]: loginSuccessReducer,
     [ActionTypes.LOGIN_FAILURE]: loginFailureReducer,
 
-    [ActionTypes.REGISTER_ASYNC]: registerAsyncReducer, 
+    [ActionTypes.LOGOUT]: logoutReducer,
+
+    [ActionTypes.REGISTER_ASYNC]: registerAsyncReducer,
     [ActionTypes.REGISTER_SUCCESS]: registerSuccessReducer,
     [ActionTypes.REGISTER_FAILURE]: registerFailureReducer,
 });
