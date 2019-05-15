@@ -29,13 +29,11 @@ export const Actions = {
             dispatch({ type: ActionTypes.LOGIN_ASYNC });
             SessionService.login(username, password)
                 .then(data => {
-                    console.log(data);
                     //Set the Authorization Token
                     axios.defaults.headers.common['Authorization'] = `Bearer ${data["token"]}`;
                     dispatch(Actions.LoginSuccess(data["username"], data["token"]));
                 })
                 .catch((errorMessage) => {
-                    console.log(errorMessage);
                     dispatch(Actions.LoginFailure(errorMessage));
                 });// end SessionService.login()
 
